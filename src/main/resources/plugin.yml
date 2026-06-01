@@ -1,7 +1,7 @@
 name: SimulatedLag
 version: '1.0'
 main: fr.bloup.simulatedLag.SimulatedLag
-api-version: '1.18'
+api-version: '1.21'
 authors: [ bloup ]
 commands:
   simulatedlag:

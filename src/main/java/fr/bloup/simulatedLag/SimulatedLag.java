@@ -5,6 +5,8 @@ import fr.bloup.simulatedLag.listeners.PlayerJoinListener;
 import fr.bloup.simulatedLag.listeners.PlayerQuitListener;
 import fr.bloup.simulatedLag.packets.PacketManager;
 import fr.bloup.simulatedLag.utils.DelayUtils;
+import fr.bloup.simulatedLag.version.VersionHandler;
+import fr.bloup.simulatedLag.version.VersionHandlerFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -26,8 +28,10 @@ public final class SimulatedLag extends JavaPlugin {
 
         pluginConfig = getConfig();
 
-        Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this,new PacketManager(new DelayUtils(this))), this);
-        Bukkit.getPluginManager().registerEvents(new PlayerQuitListener(new PacketManager(new DelayUtils(this))), this);
+        VersionHandler versionHandler = VersionHandlerFactory.getVersionHandler(getServerVersion());
+
+        Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(this,new PacketManager(this,new DelayUtils(this), versionHandler)), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerQuitListener(new PacketManager(this,new DelayUtils(this),versionHandler)), this);
 
         this.getCommand("simulatedlag").setExecutor(new SimulatedLagCommand(this));
     }
@@ -45,5 +49,13 @@ public final class SimulatedLag extends JavaPlugin {
      */
     public void setPlayerTargetedLag(Player player, Integer ms) {
         targetedPlayerLag.put(player,ms);
+    }
+
+    public String getServerVersion() {
+        // e.g. "1.21.4-R0.1-SNAPSHOT" -> "1.21"
+        String version = Bukkit.getBukkitVersion();
+        String[] versionParts = version.split("-")[0].split("\\.");
+
+        return versionParts[0] + "." + versionParts[1];
     }
 }

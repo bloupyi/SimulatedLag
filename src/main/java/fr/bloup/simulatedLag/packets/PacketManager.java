@@ -1,10 +1,11 @@
 package fr.bloup.simulatedLag.packets;
 
+import fr.bloup.simulatedLag.SimulatedLag;
 import fr.bloup.simulatedLag.utils.DelayUtils;
+import fr.bloup.simulatedLag.version.VersionHandler;
 import io.netty.channel.*;
 import lombok.RequiredArgsConstructor;
-import net.minecraft.network.protocol.Packet;
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
+
 import org.bukkit.entity.Player;
 
 import java.util.concurrent.Executors;
@@ -13,7 +14,10 @@ import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 public class PacketManager {
+    private final SimulatedLag plugin;
+
     private final DelayUtils delayUtils;
+    private final VersionHandler versionHandler;
     private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
     /**
@@ -23,7 +27,12 @@ public class PacketManager {
      * @param player The player whose packets should be intercepted.
      */
     public void interceptPlayerPackets(Player player) {
-        Channel channel = getPlayerConnectionChannel(player);
+        Channel channel = versionHandler.getPlayerChannel(player);
+
+        if (channel == null) {
+            plugin.log.warning("[SimulatedLag] Impossible de récupérer le canal du joueur" + player.getName());
+            return;
+        }
 
         ChannelDuplexHandler handler = new ChannelDuplexHandler() {
             @Override
@@ -49,21 +58,11 @@ public class PacketManager {
      * @param player The player to remove the handler for.
      */
     public void removePlayerFromChannel(Player player) {
-        Channel channel = getPlayerConnectionChannel(player);
+        Channel channel = versionHandler.getPlayerChannel(player);
 
-        if (channel.pipeline().get(player.getName()) != null) {
+        if (channel != null && channel.pipeline().get(player.getName()) != null) {
             channel.pipeline().remove(player.getName());
         }
-    }
-
-    /**
-     * Retrieves the Netty network channel of a player.
-     *
-     * @param player The player whose channel should be retrieved.
-     * @return The player's Netty channel.
-     */
-    private Channel getPlayerConnectionChannel(Player player) {
-        return ((CraftPlayer) player).getHandle().b.a.m;
     }
 
     /**
@@ -86,11 +85,24 @@ public class PacketManager {
             }
         };
 
-        if (msg instanceof Packet && !isPingPacket(msg)) {
+        if (isPacket(msg) && !isPingPacket(msg)) {
             executorService.schedule(task, delayUtils.getDelayForPlayerLag(player), TimeUnit.MILLISECONDS);
         } else {
             task.run();
         }
+    }
+
+    /**
+     * Determines whether the intercepted message is a Minecraft protocol packet.
+     * NMS packet classes live in the {@code net.minecraft.network.protocol} package on both
+     * Paper (Mojang mappings) and Spigot, so detecting by package name avoids depending on the
+     * NMS jar at compile time.
+     *
+     * @param msg The intercepted message.
+     * @return True if the message is a protocol packet, false otherwise.
+     */
+    private boolean isPacket(Object msg) {
+        return msg.getClass().getName().startsWith("net.minecraft.network.protocol.");
     }
 
     @FunctionalInterface
@@ -106,9 +118,7 @@ public class PacketManager {
      * @return True if the packet is a ping-related packet, false otherwise.
      */
     private boolean isPingPacket(Object msg) {
-        Class<?> packetClass = msg.getClass();
-        String className = packetClass.getName();
-
+        String className = msg.getClass().getName();
         return className.contains("KeepAlive") || className.toLowerCase().contains("ping");
     }
 }
