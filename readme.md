@@ -37,7 +37,7 @@ plugin.setPlayerTargetedLag(player, 200); // Set 200ms lag
 4. Restart your server.
 
 ## Compatibility
-- **Minecraft Versions:** 1.18+
+- **Minecraft Versions:** 1.18.x
 - **Dependencies:** None
 
 ## Contributing
